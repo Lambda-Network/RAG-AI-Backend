@@ -4,10 +4,10 @@
 # Backend Main File
 
 def main():
-    '''
+    """
     Main Function. Hello world!
     :return:
-    '''
+    """
     print("Hello World!")
 
 if __name__ == "__main__":
