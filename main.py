@@ -3,17 +3,18 @@
 # M: 2025-03-31 (Patrick Patten)
 # Backend Main File
 from flask import Flask, request, jsonify
+from ragflow_sdk import RAGFlow
 
 app = Flask(__name__)
 
 
-@app.route('/test', methods=['GET'])
-def test():
+@app.route('/ping', methods=['GET'])
+def ping():
     """
-    Test endpoint to check if the server is running.
+    Ping endpoint to check if the server is running.
     :return:
     """
-    return jsonify({"message": "Hello, this is a test endpoint!"})
+    return jsonify({"message": "Server is running!"}), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
