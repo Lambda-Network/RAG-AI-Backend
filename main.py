@@ -1,14 +1,19 @@
 # Lambda Studios
 # C: 2025-03-20
-# M: 2025-03-20
+# M: 2025-03-31 (Patrick Patten)
 # Backend Main File
+from flask import Flask, request, jsonify
 
-def main():
+app = Flask(__name__)
+
+
+@app.route('/test', methods=['GET'])
+def test():
     """
-    Main Function. Hello world!
+    Test endpoint to check if the server is running.
     :return:
     """
-    print("Hello World!")
+    return jsonify({"message": "Hello, this is a test endpoint!"})
 
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)
