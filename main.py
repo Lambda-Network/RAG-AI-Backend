@@ -102,7 +102,7 @@ def search():
     response = requests.delete(endpoint, headers=headers, json=params)
     data = response.json()
     if data.get("code") != 0:
-        print("Unable to delete session?")
+        logger.error(f"Unable to delete session with ID {session_id}. Response: {data}")
     return jsonify({"answer": str(answer)}), 200
 
 
