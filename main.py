@@ -27,6 +27,7 @@ def does_assistant_exist():
         "id": assistant_id
     }
     response = requests.get(endpoint, headers=headers, params=params)
+    response.raise_for_status()
     data = response.json()
     if data.get("code") == 0:
         return True
