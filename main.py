@@ -96,7 +96,7 @@ def search():
     dataset_id = data.get("data").get("chunks").get("dataset_id") #get the id of the dataset the AI received the information from
     document_id = data.get("data").get("doc_aggs").get("doc_id") #get the id of the document the AI received the information from
 
-    #attempt to retrive the file that the AI received the information from
+    #attempt to retrieve the file that the AI received the information from
     endpoint = f"{base_url}/api/v1/datasets/{dataset_id}/documents/{document_id}"
     headers = {
        "Authorization": f"Bearer {api_key}",
