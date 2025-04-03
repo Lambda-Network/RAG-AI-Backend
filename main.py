@@ -73,6 +73,8 @@ def search():
     if data.get("code") != 0:
         return jsonify({"error": "Failed to create session"}), 500
     session_id = data.get("data").get("id")
+
+
     print("Session ID:", session_id)
 
     endpoint = f"{base_url}/api/v1/chats/{assistant_id}/completions"
@@ -90,6 +92,26 @@ def search():
     if data.get("code") != 0:
         return jsonify({"error": "Failed to ask question"}), 500
     answer = data["data"]["answer"]
+
+    dataset_id = data.get("data").get("chunks").get("dataset_id") #get the id of the dataset the AI received the information from
+    document_id = data.get("data").get("doc_aggs").get("doc_id") #get the id of the document the AI received the information from
+
+    #attempt to retrive the file that the AI received the information from
+    endpoint = f"{base_url}/api/v1/datasets/{dataset_id}/documents/{document_id}"
+    headers = {
+       "Authorization": f"Bearer {api_key}",
+       "Content-Type": "application/json"
+    }
+    params = {
+        "dataset_id": [dataset_id],
+        "documents_id": [document_id]
+    }
+    response = requests.get(endpoint, headers=headers, json=params)
+    data = response.json()
+    if data.get("code") == 102:
+        return jsonify({"error": "Failed to fetch file"}), 500
+    output = "./ragflow.txt"
+    answer += output
 
     endpoint = f"{base_url}/api/v1/chats/{assistant_id}/sessions/"
     headers = {
