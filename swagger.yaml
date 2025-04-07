@@ -1,0 +1,103 @@
+openapi: 3.0.0
+info:
+  title: RAG AI Backend API
+  version: "1.0.0"
+  description: API for backend endpoints of RAG AI Application. Created for a NSCC Capstone 2025 project with IT Gen.
+servers:
+  - url: http://localhost:5000
+paths:
+  /ping:
+    get:
+      summary: Check if the server is running.
+      responses:
+        "200":
+          description: Server is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Server is running!
+  /search:
+    post:
+      summary: Perform a search and retrieve relevant files.
+      requestBody:
+        description: JSON payload containing the search query.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: The search prompt/input.
+                  example: What is Python?
+      responses:
+        "200":
+          description: Successful search response.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                    description: The answer generated from the search.
+                    example: Here is your answer.
+                  files:
+                    type: array
+                    description: A list of file names (not full paths) associated with the search result.
+                    items:
+                      type: string
+                      example: abc12345.html
+        "400":
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Missing query prompt.
+        "500":
+          description: Internal server error processing the search.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to ask question.
+  /download/{filename}:
+    get:
+      summary: Download a file from the backend.
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+          description: The name of the file to download.
+      responses:
+        "200":
+          description: Successfully returns the file as an attachment.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: File not found.

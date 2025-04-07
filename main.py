@@ -11,6 +11,7 @@ import uuid
 import asyncio
 import time
 import threading
+from flask_swagger_ui import get_swaggerui_blueprint
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,8 +22,7 @@ api_key = os.getenv("API_KEY")
 assistant_id = os.getenv("ASSISTANT_ID")
 delete_delay_minutes = int(os.getenv("DELETE_DELAY"))
 folder = "retrieved-files"
-
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.')
 
 async def async_delete_files_loop():
     while True:
@@ -67,6 +67,22 @@ def does_assistant_exist():
 def generate_small_uuid():
     # Generate a full UUID (hex string) and slice the first 8 characters
     return uuid.uuid4().hex[:8]
+
+# python
+SWAGGER_URL = '/docs'  # Change from '/' to '/docs'
+API_URL = '/swagger.yaml'  # URL where the swagger.yaml is served
+
+swagger_ui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={'app_name': "RAG AI Backend API"}
+)
+app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
+
+@app.route('/swagger.yaml')
+def serve_swagger_yaml():
+    # Serve swagger.yaml from the current working directory
+    return send_from_directory(os.getcwd(), 'swagger.yaml', mimetype='application/yaml')
 
 @app.route('/ping', methods=['GET'])
 def ping():
