@@ -36,8 +36,8 @@ async def async_delete_files_loop():
                     try:
                         os.remove(file_path)
                         if dev_mode: print(f"Deleted file: {file_path}")
-                    except Exception as e:
-                        print(f"Error deleting file {file_path}: {e}")
+                    except Exception as exception:
+                        print(f"Error deleting file {file_path}: {exception}")
         # Wait 60 seconds before next check.
         await asyncio.sleep(60)
 
