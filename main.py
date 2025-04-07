@@ -3,7 +3,7 @@
 # M: 2025-04-02 (Patrick Patten)
 # Backend Main File
 from venv import logger
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import requests
 import os
 from dotenv import load_dotenv
@@ -180,6 +180,15 @@ def search():
         logger.error(f"Unable to delete session with ID {session_id}. Response: {data}")
     return jsonify({"answer": str(answer), "files": downloaded_file_names}), 200
 
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    # Define the folder where the files are stored
+    directory = os.path.join(os.getcwd(), 'retrieved-files')
+    try:
+        # Returns the file as an attachment for download
+        return send_from_directory(directory, filename, as_attachment=True)
+    except Exception:
+        return jsonify({"error": "File not found."}), 404
 
 
 def check_env_variables():
