@@ -8,6 +8,9 @@ import requests
 import os
 from dotenv import load_dotenv
 import uuid
+import asyncio
+import time
+import threading
 
 # Load environment variables from .env file
 load_dotenv()
@@ -16,8 +19,32 @@ status = os.getenv("STATUS")
 base_url = os.getenv("BASE_URL")
 api_key = os.getenv("API_KEY")
 assistant_id = os.getenv("ASSISTANT_ID")
+delete_delay_minutes = int(os.getenv("DELETE_DELAY"))
+folder = "retrieved-files"
 
 app = Flask(__name__)
+
+async def async_delete_files_loop():
+    while True:
+        if dev_mode: print("Running deletion loop")
+        current_time = time.time()
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            if os.path.isfile(file_path):
+                # Delete file if it is older than the set delay.
+                if current_time - os.path.getmtime(file_path) > delete_delay_minutes * 60:
+                    try:
+                        os.remove(file_path)
+                        if dev_mode: print(f"Deleted file: {file_path}")
+                    except Exception as e:
+                        print(f"Error deleting file {file_path}: {e}")
+        # Wait 60 seconds before next check.
+        await asyncio.sleep(60)
+
+def start_deletion_loop():
+    asyncio.run(async_delete_files_loop())
+
+
 
 def does_assistant_exist():
     endpoint = f"{base_url}/api/v1/chats/"
@@ -93,25 +120,50 @@ def search():
         return jsonify({"error": "Failed to ask question"}), 500
     answer = data["data"]["answer"]
 
-    dataset_id = data.get("data").get("chunks").get("dataset_id") #get the id of the dataset the AI received the information from
-    document_id = data.get("data").get("doc_aggs").get("doc_id") #get the id of the document the AI received the information from
+    # Ensure the folder exists
+    download_folder = "retrieved-files"
+    os.makedirs(download_folder, exist_ok=True)
 
-    #attempt to retrieve the file that the AI received the information from
-    endpoint = f"{base_url}/api/v1/datasets/{dataset_id}/documents/{document_id}"
-    headers = {
-       "Authorization": f"Bearer {api_key}",
-       "Content-Type": "application/json"
-    }
-    params = {
-        "dataset_id": [dataset_id],
-        "documents_id": [document_id]
-    }
-    response = requests.get(endpoint, headers=headers, json=params)
-    data = response.json()
-    if data.get("code") == 102:
-        return jsonify({"error": "Failed to fetch file"}), 500
-    output = "./ragflow.txt"
-    answer += output
+    # Get referenced document details
+    referenced_chunks = data["data"]["reference"]["chunks"]
+    referenced_docs = data["data"]["reference"]["doc_aggs"]
+
+    downloaded_file_paths = []
+    files_to_download = min(len(referenced_chunks), len(referenced_docs))
+
+    for i in range(files_to_download):
+        dataset_id = referenced_chunks[i]["dataset_id"]
+        document_id = referenced_docs[i]["doc_id"]
+        doc_name = referenced_docs[i]["doc_name"]
+        _, ext = os.path.splitext(doc_name)
+        if not ext:
+            ext = ".html"  # Fallback to HTML if no extension found
+
+        file_endpoint = f"{base_url}/api/v1/datasets/{dataset_id}/documents/{document_id}"
+        file_headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        file_params = {
+            "dataset_id": [dataset_id],
+            "documents_id": [document_id]
+        }
+
+        file_resp = requests.get(file_endpoint, headers=file_headers, json=file_params, stream=True)
+        if file_resp.status_code == 200:
+            # Generate a new UUID for the file name
+            file_uuid = uuid.uuid4().hex
+            file_path = os.path.join(download_folder, f"{file_uuid}{ext}")
+            with open(file_path, "wb") as f:
+                for chunk in file_resp.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            downloaded_file_paths.append(os.path.abspath(file_path))
+        else:
+            print(f"Failed to download file for document {document_id}")
+
+    # Create a list of file names (not full paths)
+    downloaded_file_names = [os.path.basename(path) for path in downloaded_file_paths]
 
     endpoint = f"{base_url}/api/v1/chats/{assistant_id}/sessions/"
     headers = {
@@ -126,7 +178,7 @@ def search():
     data = response.json()
     if data.get("code") != 0:
         logger.error(f"Unable to delete session with ID {session_id}. Response: {data}")
-    return jsonify({"answer": str(answer)}), 200
+    return jsonify({"answer": str(answer), "files": downloaded_file_names}), 200
 
 
 
@@ -164,4 +216,6 @@ if __name__ == "__main__":
         dev_mode = True
     elif status == "production":
         dev_mode = False
+    deletion_thread = threading.Thread(target=start_deletion_loop, daemon=True)
+    deletion_thread.start()
     app.run(debug=dev_mode)
