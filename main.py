@@ -12,6 +12,7 @@ import asyncio
 import time
 import threading
 from flask_swagger_ui import get_swaggerui_blueprint
+from flask_cors import CORS
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,6 +24,7 @@ assistant_id = os.getenv("ASSISTANT_ID")
 delete_delay_minutes = int(os.getenv("DELETE_DELAY"))
 folder = "retrieved-files"
 app = Flask(__name__, static_folder='.')
+CORS(app, resources={r"*": {"origins": "*"}})
 
 async def async_delete_files_loop():
     while True:
@@ -93,6 +95,7 @@ def ping():
     return jsonify({"message": "Server is running!"}), 200
 
 
+# python
 @app.route('/search', methods=['POST'])
 def search():
     if not request.is_json:
@@ -117,9 +120,6 @@ def search():
         return jsonify({"error": "Failed to create session"}), 500
     session_id = data.get("data").get("id")
 
-
-    print("Session ID:", session_id)
-
     endpoint = f"{base_url}/api/v1/chats/{assistant_id}/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -136,13 +136,9 @@ def search():
         return jsonify({"error": "Failed to ask question"}), 500
     answer = data["data"]["answer"]
 
-    # Ensure the folder exists
-    download_folder = "retrieved-files"
-    os.makedirs(download_folder, exist_ok=True)
-
-    # Get referenced document details
-    referenced_chunks = data["data"]["reference"]["chunks"]
-    referenced_docs = data["data"]["reference"]["doc_aggs"]
+    # Safely access referenced data
+    referenced_chunks = data["data"].get("reference", {}).get("chunks", [])
+    referenced_docs = data["data"].get("reference", {}).get("doc_aggs", [])
 
     downloaded_file_paths = []
     files_to_download = min(len(referenced_chunks), len(referenced_docs))
@@ -167,9 +163,8 @@ def search():
 
         file_resp = requests.get(file_endpoint, headers=file_headers, json=file_params, stream=True)
         if file_resp.status_code == 200:
-            # Generate a new UUID for the file name
             file_uuid = uuid.uuid4().hex
-            file_path = os.path.join(download_folder, f"{file_uuid}{ext}")
+            file_path = os.path.join("retrieved-files", f"{file_uuid}{ext}")
             with open(file_path, "wb") as f:
                 for chunk in file_resp.iter_content(chunk_size=8192):
                     if chunk:
@@ -178,7 +173,6 @@ def search():
         else:
             print(f"Failed to download file for document {document_id}")
 
-    # Create a list of file names (not full paths)
     downloaded_file_names = [os.path.basename(path) for path in downloaded_file_paths]
 
     endpoint = f"{base_url}/api/v1/chats/{assistant_id}/sessions/"
